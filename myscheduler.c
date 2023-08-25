@@ -5,7 +5,7 @@
 
 //  CITS2002 Project 1 2023
 //  Student1:   23326698    Jack Blackwood   
-//  Student2:   STUDENT-NUMBER2   NAME-2
+//  Student2:   23476614    Emily Matthews
 
 
 //  myscheduler (v1.0)
