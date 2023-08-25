@@ -41,6 +41,16 @@
 
 void read_sysconfig(char argv0[], char filename[])
 {
+    // create array of devices
+    char devices[99];
+	// per each item in devices array:
+    char name[99];
+    int read_speed;
+    int write_speed;
+	// and then add to devices array
+    // store number of devices
+	int ndevices = 0;
+
 }
 
 void read_commands(char argv0[], char filename[])
