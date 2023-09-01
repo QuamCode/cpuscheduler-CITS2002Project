@@ -41,6 +41,7 @@
 
 void read_sysconfig(char argv0[], char filename[])
 {
+    /*
     // create array of devices
     char devices[99];
 	// per each item in devices array:
@@ -50,7 +51,7 @@ void read_sysconfig(char argv0[], char filename[])
 	// and then add to devices array
     // store number of devices
 	int ndevices = 0;
-
+*/
     //Read the sysconfig file, which is a tab seperated file, ignoring lines that start with a #pragma endregion
     FILE *fp = fopen(filename, "r");
     if (fp == NULL) {
@@ -76,31 +77,22 @@ void read_sysconfig(char argv0[], char filename[])
 
 void read_commands(char argv0[], char filename[])
 {
-    // attempt to open the file for read-only access
-    int file = fopen(filename, "r");
-    // create array to store contents of the file
-    char filecontent[10]; 
-    // read content
-    while(fgets(filecontent, 10, file)) {
-        printf("%s",filecontent);
-        // call execute_commands()
-    }
-    /*
-    // catch error if file cannot be opened - might be incorrect to use as am now using fopen
-    if (file == -1) {
+    // open the commands file
+    FILE *fp = fopen(filename, "r");
+    if (fp == NULL) {
         printf("unable to open '%s'\n", filename);
         exit(EXIT_FAILURE);
     }
-    // create an array to hold file contents
     char buffer[9999];
-    size_t got;
-    // read file multiple times until end of file
-    while((got = read(file, buffer, sizeof buffer)) > 0) {  
-        // for each command call execute_commands();
+    // for each line that isn't a comment, call execute_commands()
+    while (fgets(buffer, sizeof buffer, fp) != NULL) {
+        if (buffer[0] == CHAR_COMMENT) continue;
+        // printf("%s %s %s %s\n", time, command, thing, timeagain?);
+        // execute_commands(line);
+        printf(buffer,"%s");
     }
-    */
     // finished with the file
-    fclose(file);
+    fclose(fp);
 }
 
 //  ----------------------------------------------------------------------
