@@ -50,6 +50,28 @@ void read_sysconfig(char argv0[], char filename[])
 	// and then add to devices array
     // store number of devices
 	int ndevices = 0;
+
+    //Read the sysconfig file, which is a tab seperated file, ignoring lines that start with a #pragma endregion
+    FILE *fp = fopen(filename, "r");
+    if (fp == NULL) {
+        printf("unable to open '%s'\n", filename);
+        exit(EXIT_FAILURE);
+    }
+    char buffer[9999];
+    //read each line of the file, ignore lines that start with #
+    //record an integer for each line that starts with device
+    //Create an array that assigns the device to the integer with the name from the second tsv column
+
+    while (fgets(buffer, sizeof buffer, fp) != NULL) {
+        if (buffer[0] == CHAR_COMMENT) continue;
+        char name[99];
+        int read_speed;
+        int write_speed;
+        sscanf(buffer, "%s %i %i", name, &read_speed, &write_speed);
+        printf("%s %i %i\n", name, read_speed, write_speed);
+    }
+
+    
 }
 
 void read_commands(char argv0[], char filename[])
