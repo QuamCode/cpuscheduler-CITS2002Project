@@ -60,47 +60,48 @@ void read_sysconfig(char argv0[], char filename[])
     char buffer[9999];
     //read each line of the file, ignore lines that start with #
     //record an integer for each line that starts with device
-    //Create an array that assigns the device to the integer with the name from the second tsv column
-
     while (fgets(buffer, sizeof buffer, fp) != NULL) {
         if (buffer[0] == CHAR_COMMENT) continue;
         char name[99];
         int read_speed;
         int write_speed;
-        sscanf(buffer, "%s %i %i", name, &read_speed, &write_speed);
-        printf("%s %i %i\n", name, read_speed, write_speed);
+
+        printf("%s", buffer);
+
     }
+
+    fclose(fp);
 
     
 }
 
 void read_commands(char argv0[], char filename[])
 {
-    // attempt to open the file for read-only access
-    int file = fopen(filename, "r");
-    // create array to store contents of the file
-    char filecontent[10]; 
-    // read content
-    while(fgets(filecontent, 10, file)) {
-        printf("%s",filecontent);
-        // call execute_commands()
-    }
-    /*
-    // catch error if file cannot be opened - might be incorrect to use as am now using fopen
-    if (file == -1) {
-        printf("unable to open '%s'\n", filename);
-        exit(EXIT_FAILURE);
-    }
-    // create an array to hold file contents
-    char buffer[9999];
-    size_t got;
-    // read file multiple times until end of file
-    while((got = read(file, buffer, sizeof buffer)) > 0) {  
-        // for each command call execute_commands();
-    }
-    */
-    // finished with the file
-    fclose(file);
+    // // attempt to open the file for read-only access
+    // int file = fopen(filename, "r");
+    // // create array to store contents of the file
+    // char filecontent[10]; 
+    // // read content
+    // while(fgets(filecontent, 10, file)) {
+    //     printf("%s",filecontent);
+    //     // call execute_commands()
+    // }
+    // /*
+    // // catch error if file cannot be opened - might be incorrect to use as am now using fopen
+    // if (file == -1) {
+    //     printf("unable to open '%s'\n", filename);
+    //     exit(EXIT_FAILURE);
+    // }
+    // // create an array to hold file contents
+    // char buffer[9999];
+    // size_t got;
+    // // read file multiple times until end of file
+    // while((got = read(file, buffer, sizeof buffer)) > 0) {  
+    //     // for each command call execute_commands();
+    // }
+    // */
+    // // finished with the file
+    // fclose(file);
 }
 
 //  ----------------------------------------------------------------------
