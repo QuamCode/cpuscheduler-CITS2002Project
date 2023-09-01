@@ -77,31 +77,31 @@ void read_sysconfig(char argv0[], char filename[])
 
 void read_commands(char argv0[], char filename[])
 {
-    // // attempt to open the file for read-only access
-    // int file = fopen(filename, "r");
-    // // create array to store contents of the file
-    // char filecontent[10]; 
-    // // read content
-    // while(fgets(filecontent, 10, file)) {
-    //     printf("%s",filecontent);
-    //     // call execute_commands()
-    // }
-    // /*
-    // // catch error if file cannot be opened - might be incorrect to use as am now using fopen
-    // if (file == -1) {
-    //     printf("unable to open '%s'\n", filename);
-    //     exit(EXIT_FAILURE);
-    // }
-    // // create an array to hold file contents
-    // char buffer[9999];
-    // size_t got;
-    // // read file multiple times until end of file
-    // while((got = read(file, buffer, sizeof buffer)) > 0) {  
-    //     // for each command call execute_commands();
-    // }
-    // */
-    // // finished with the file
-    // fclose(file);
+    // attempt to open the file for read-only access
+    int file = fopen(filename, "r");
+    // create array to store contents of the file
+    char filecontent[10]; 
+    // read content
+    while(fgets(filecontent, 10, file)) {
+        printf("%s",filecontent);
+        // call execute_commands()
+    }
+    /*
+    // catch error if file cannot be opened - might be incorrect to use as am now using fopen
+    if (file == -1) {
+        printf("unable to open '%s'\n", filename);
+        exit(EXIT_FAILURE);
+    }
+    // create an array to hold file contents
+    char buffer[9999];
+    size_t got;
+    // read file multiple times until end of file
+    while((got = read(file, buffer, sizeof buffer)) > 0) {  
+        // for each command call execute_commands();
+    }
+    */
+    // finished with the file
+    fclose(file);
 }
 
 //  ----------------------------------------------------------------------
