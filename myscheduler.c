@@ -61,16 +61,17 @@ void read_sysconfig(char argv0[], char filename[])
     char buffer[9999];
     //read each line of the file, ignore lines that start with #
     //record an integer for each line that starts with device
-    //Create an array that assigns the device to the integer with the name from the second tsv column
-
     while (fgets(buffer, sizeof buffer, fp) != NULL) {
         if (buffer[0] == CHAR_COMMENT) continue;
         char name[99];
         int read_speed;
         int write_speed;
-        sscanf(buffer, "%s %i %i", name, &read_speed, &write_speed);
-        printf("%s %i %i\n", name, read_speed, write_speed);
+
+        printf("%s", buffer);
+
     }
+
+    fclose(fp);
 
     
 }
