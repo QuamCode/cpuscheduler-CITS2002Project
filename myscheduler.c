@@ -50,11 +50,26 @@ void read_sysconfig(char argv0[], char filename[])
 	// and then add to devices array
     // store number of devices
 	int ndevices = 0;
-
 }
 
 void read_commands(char argv0[], char filename[])
 {
+    // attempt to open the file for read-only access
+    int fd = open(filename, O_RDONLY);
+    // catch error if file cannot be opened
+    if (fd == -1) {
+        printf("unable to open '%s'\n", filename);
+        exit(EXIT_FAILURE);
+    }
+    // create an array to hold file contents
+    char buffer[9999];
+    size_t got;
+    // read file multiple times until end of file
+    while((got = read(fd, buffer, sizeof buffer)) > 0) {  
+        // for each command call execute_commands();
+    }
+    // finished with the file
+    close(fd);
 }
 
 //  ----------------------------------------------------------------------
