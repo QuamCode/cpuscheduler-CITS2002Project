@@ -1,0 +1,45 @@
+When spawing a new process:
+create the new (child) process
+append the new process to the READY queue (NEW→READY)
+append the current (parent) process to the READY queue (RUNNING→READY)
+
+
+TODO LIST
+	Define a queue data-structure to store the processes in READY, RUNNING, BLOCKED states and execute sequentially
+	Define all of the system call types, spawn, read, write, sleep, wait, and exit
+	Create a function to take a device name and amount to read/write and return a calculated time in microseconds
+	
+	Execute all the commands one by one
+
+
+1. Read both files sysconfig and commands
+2. Store respective in data-structures for further access
+    SYSCONFIG
+        DEVICE
+        READSPEED
+        WRITESPEED
+
+    COMMANDS
+        NAME_OF_COMMAND
+        SUBCOMMANDS
+        EXECUTION_TIME_PER_SUBCOMMAND
+
+    SLEEP-SUB
+        AMOUNT OF TIME TO SLEEP
+
+    WRITE/READ
+        DEVICE TO USE
+        AMOUNT TO READ OR WRITE
+
+    SPAWN
+        WHICH PROCESS/SYSTEM CALL TO START
+
+    EXIT
+
+    ie shortsleep may look like:
+        sleepCallObject:
+            amountOfTimeToSleep: 100000
+        
+        commandObject:
+            name: shortsleep
+            systemcalls: [sleepCallObject, exitCallObject]
