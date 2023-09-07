@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 //  you may need other standard header files
 
 
@@ -41,40 +42,41 @@
 
 void read_sysconfig(char argv0[], char filename[])
 {
-    /*
-    // create array of devices
-    char devices[99];
-	// per each item in devices array:
-    char name[99];
-    int read_speed;
-    int write_speed;
-	// and then add to devices array
-    // store number of devices
-	int ndevices = 0;
-*/
-    //Read the sysconfig file, which is a tab seperated file, ignoring lines that start with a #pragma endregion
+
     FILE *fp = fopen(filename, "r");
     if (fp == NULL) {
         printf("unable to open '%s'\n", filename);
         exit(EXIT_FAILURE);
     }
     char buffer[9999];
-    //read each line of the file, ignore lines that start with #
-    //record an integer for each line that starts with device
-    while (fgets(buffer, sizeof buffer, fp) != NULL) {
-        if (buffer[0] == CHAR_COMMENT) continue;
-        char name[99];
-        int read_speed;
-        int write_speed;
+    int ndevices = 0;  // Initialize the device count
 
-        printf("%s", buffer);
+    while (fgets(buffer, sizeof buffer, fp) != NULL) {
+        if (buffer[0] == CHAR_COMMENT || buffer[0] == '\n') {
+            // Ignore comments and empty lines
+            continue;
+        }
+
+        char token[100];
+        if (sscanf(buffer, "%s", token) == 1) {
+            if (strcmp(token, "device") == 0) {
+                ndevices++;
+            } else if (strcmp(token, "timequantum") == 0) {
+                int timequantum;
+                if (sscanf(buffer, "%*s %d", &timequantum) == 1) {
+                    printf("Time Quantum: %dusec\n", timequantum);
+                }
+            }
+        }
 
     }
 
-    fclose(fp);
+    // Print the number of devices
+    printf("Number of Devices: %d\n", ndevices);
 
-    
+    fclose(fp);
 }
+
 
 void read_commands(char argv0[], char filename[])
 {
