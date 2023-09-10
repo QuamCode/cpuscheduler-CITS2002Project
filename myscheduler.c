@@ -33,14 +33,13 @@
 
 #define TIME_CONTEXT_SWITCH             5
 #define TIME_CORE_STATE_TRANSITIONS     10
-#define TIME_ACQUIRE_BUS                20
-
-// DEFINE THE 3 PROCESS QUEUES
-//#define READY_QUEUE                     
+#define TIME_ACQUIRE_BUS                20                  
 
 //  ----------------------------------------------------------------------
 
 #define CHAR_COMMENT                    '#'
+
+//  ----------------------------------------------------------------------
 
 //Create a struct for the device info
 typedef struct {
@@ -53,6 +52,10 @@ typedef struct{
     char commandname[MAX_COMMAND_NAME];
 } CommandInfo;
 
+//  ----------------------------------------------------------------------
+
+/* READ SYSCONFIG FUNCTIONS */
+// main read sysconfig function
 void read_sysconfig(char argv0[], char filename[])
 {
 
@@ -109,7 +112,10 @@ void read_sysconfig(char argv0[], char filename[])
     fclose(fp);
 }
 
+//  ----------------------------------------------------------------------
 
+/* READ COMMANDS FUNCTIONS */
+// main command reader function
 void read_commands(char argv0[], char filename[])
 {
     // open the commands file
@@ -172,6 +178,33 @@ void read_commands(char argv0[], char filename[])
 
 //  ----------------------------------------------------------------------
 
+/* EXECUTE COMMANDS FUNCTIONS */
+
+int usecCalculator(int usecs[], int size) {
+    // 1 microsecond = 1×10**-6 seconds
+    // 1 second = 1×10**6 microseconds
+    int total = 0;
+    for (int i = 0; i < size; i++) {
+        total += usecs[i];
+    }
+    printf("%d \n", total);
+    return total;
+}
+
+int convertUsecToInt(char *usecStrings[], int size) {
+    int usecInts[size];
+    for (int i = 0; i < size; i++) {
+        char uInt[30];
+        strncpy(uInt, usecStrings[i], strlen(usecStrings[i]) - 5); // remove the "usecs"
+        uInt[strlen(usecStrings[i]) - 5] = '\0';
+        usecInts[i] = atoi(uInt);
+        printf("%d\n", usecInts[i]);
+    }
+    usecCalculator(usecInts, size);
+    return 0; // how do i return the array of usecInts without error
+}
+
+// main execute commands function
 void execute_commands(void)
 {
     /*
@@ -200,7 +233,7 @@ int main(int argc, char *argv[])
     read_commands(argv[0], argv[2]);
 
 //  EXECUTE COMMANDS, STARTING AT FIRST IN command-file, UNTIL NONE REMAIN
- //   execute_commands();
+    //execute_commands();
 
 //  PRINT THE PROGRAM'S RESULTS
     printf("measurements  %i  %i\n", 0, 0);
