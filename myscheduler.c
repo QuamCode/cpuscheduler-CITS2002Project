@@ -33,13 +33,14 @@
 
 #define TIME_CONTEXT_SWITCH             5
 #define TIME_CORE_STATE_TRANSITIONS     10
-#define TIME_ACQUIRE_BUS                20                  
+#define TIME_ACQUIRE_BUS                20
+
+// DEFINE THE 3 PROCESS QUEUES
+//#define READY_QUEUE                     
 
 //  ----------------------------------------------------------------------
 
 #define CHAR_COMMENT                    '#'
-
-//  ----------------------------------------------------------------------
 
 //Create a struct for the device info
 typedef struct {
@@ -48,15 +49,64 @@ typedef struct {
     long long writespeed;
 } DeviceInfo;
 
-typedef struct{
-    char commandname[MAX_COMMAND_NAME];
-} CommandInfo;
+typedef struct {
+    DeviceInfo devices[MAX_DEVICES];
+    int num_devices;
+} DeviceStorage;
 
-//  ----------------------------------------------------------------------
 
-/* READ SYSCONFIG FUNCTIONS */
-// main read sysconfig function
-void read_sysconfig(char argv0[], char filename[])
+
+typedef struct {
+    char syscall[MAX_COMMAND_NAME];
+    int elapsed_time;
+    char arg1[MAX_COMMAND_NAME];
+    char arg2[MAX_COMMAND_NAME];
+} Syscall;
+
+typedef struct {
+    char name[MAX_COMMAND_NAME];
+    Syscall syscalls[MAX_SYSCALLS_PER_PROCESS];
+    int num_syscalls;
+} Command;
+
+typedef struct {
+    Command commands[MAX_COMMANDS];
+    int num_commands;
+} CommandStorage;
+
+
+
+void initializeCommandStorage(CommandStorage *storage) {
+    storage->num_commands = 0;
+}
+
+void initializeDeviceStorage(DeviceStorage *storage) {
+    storage->num_devices = 0;
+}
+
+
+void addCommand(CommandStorage *storage, Command command) {
+    if (storage->num_commands < MAX_COMMANDS) {
+        storage->commands[storage->num_commands] = command;
+        storage->num_commands++;
+    } else {
+        printf("Error: Maximum number of commands reached.\n");
+    }
+}
+
+void addDevice(DeviceStorage *storage, DeviceInfo device) {
+    if (storage->num_devices < MAX_DEVICES) {
+        storage->devices[storage->num_devices] = device;
+        storage->num_devices++;
+    } else {
+        printf("Error: Maximum number of devices reached.\n");
+    }
+}
+
+
+
+
+void read_sysconfig(char argv0[], char filename[], DeviceStorage *deviceStorage)
 {
 
     FILE *fp = fopen(filename, "r");
@@ -65,10 +115,6 @@ void read_sysconfig(char argv0[], char filename[])
         exit(EXIT_FAILURE);
     }
     char buffer[9999];
-    int ndevices = 0;  // Initialize the device count
-    
-    DeviceInfo devices[MAX_DEVICES];
-    int deviceIndex = 0;
 
     while (fgets(buffer, sizeof buffer, fp) != NULL) {
         if (buffer[0] == CHAR_COMMENT || buffer[0] == '\n') {
@@ -84,13 +130,11 @@ void read_sysconfig(char argv0[], char filename[])
                 long long writespeed;
                 // out of buffer find first string and ignore, then find devicename string store it, then find readspeed and writespeed as long long and store
                 if(sscanf(buffer, "%*s %s %lldBps %lldBps", devicename, &readspeed, &writespeed) == 3){
-                    // Store the device info
-                    strcpy(devices[deviceIndex].devicename, devicename);
-               //     printf("%s", devicename);
-                    // store the read and write speeds
-                    devices[deviceIndex].readspeed = readspeed;
-                    devices[deviceIndex].writespeed = writespeed;
-                    deviceIndex++;
+                    DeviceInfo device;
+                    strcpy(device.devicename, devicename);
+                    device.readspeed = readspeed;
+                    device.writespeed = writespeed;
+                    addDevice(deviceStorage, device);
                 }
             } else if (strcmp(token, "timequantum") == 0) {
                 int timequantum;
@@ -102,21 +146,11 @@ void read_sysconfig(char argv0[], char filename[])
 
     }
 
-    // Print the number of devices
-    printf("Number of Devices: %d\n", deviceIndex);
-// Print the device info
-    for (int i = 0; i < deviceIndex; i++) {
-        printf("Device %d: %s, %lldBps, %lldBps\n", i, devices[i].devicename, devices[i].readspeed, devices[i].writespeed);
-    }
-
     fclose(fp);
 }
 
-//  ----------------------------------------------------------------------
 
-/* READ COMMANDS FUNCTIONS */
-// main command reader function
-void read_commands(char argv0[], char filename[])
+void read_commands(char argv0[], char filename[], CommandStorage *storage)
 {
     // open the commands file
     FILE *fp = fopen(filename, "r");
@@ -124,87 +158,60 @@ void read_commands(char argv0[], char filename[])
         printf("unable to open '%s'\n", filename);
         exit(EXIT_FAILURE);
     }
+
     char buffer[9999];
-    char command[MAX_COMMAND_NAME];
-    CommandInfo commandInfo;
+    Command current_command;
+    current_command.num_syscalls = 0;
+    int newCommand = 0;
 
     while (fgets(buffer, sizeof buffer, fp) != NULL) {
         // ignore comments and new line
         if (buffer[0] == CHAR_COMMENT || buffer[0] == '\n') continue;
         
-        if (buffer[0] == '\t'){
-            char token[MAX_COMMAND_NAME];
-            sscanf(buffer, "%*s %s", token);
-            printf("System Call: %s\n", token);
-        } else {
-            if (sscanf(buffer, "%s", command) == 1){
-                char token[MAX_COMMAND_NAME];
-                sscanf(buffer, "%s", token);
-                printf("Command: %s\n", token);
-                }
+        if (buffer[0] != '\t'){
+            //Only add the previous current command once we come across a new command
+            if (newCommand) {
+                addCommand(storage, current_command);
+                current_command.num_syscalls = 0;
+                newCommand = 0;
             }
+            // Parse the command name
+            sscanf(buffer, "%s", current_command.name);
+            newCommand = 1;
+        } else {
+            Syscall syscall;
+            int parsed_fields = sscanf(buffer, " %dusecs %s %s %s", &syscall.elapsed_time, syscall.syscall, syscall.arg1, syscall.arg2);
 
-        if (sscanf(buffer, "%s", command) == 1){
-            
-        }
+            if (parsed_fields >= 2) {
+                // At least the elapsed time and syscall name were successfully parsed.
+                // Check if the arguments are empty and set them to empty strings if necessary.
+                if (parsed_fields < 3) {
+                    // Argument 1 is empty
+                    strcpy(syscall.arg1, "");
+                }
+                if (parsed_fields < 4) {
+                    // Argument 2 is empty
+                    strcpy(syscall.arg2, "");
+                }
 
-
-    
-        // create an array of commands per line
-        char cmdline[MAX_COMMANDS]; // 20
-        for (int i = 0; i < sizeof buffer; i++) {
-            int cmdindex = 0;
-            if (buffer[i] == '\t') continue;
-            cmdline[cmdindex] += buffer[i];
-            cmdindex += 1;
-        }
-        char token[MAX_COMMAND_NAME];
-
-
-        // if(buffer[0] == '\t'){
-        //     printf("System Call: ");
-        //     if (sscanf(buffer, "%s", token) == 1) {
-        //         printf("%s", token);
-        //         printf("\n");
-        //     }
-        // }
-        //printf("COMMAND FILE \n");
-        //printf(buffer,"%s \n");
-        //printf(cmdline,"%s \n");
+                // Add the syscall to the current command.
+                current_command.syscalls[current_command.num_syscalls++] = syscall;
+            } else {
+                printf("Error parsing line: %s\n", buffer);
+            }
+            }
     }
+    // Add the last command
+    if (newCommand) {
+        addCommand(storage, current_command);
+    }
+
     // finished with the file
     fclose(fp);
 }
 
 //  ----------------------------------------------------------------------
 
-/* EXECUTE COMMANDS FUNCTIONS */
-
-int usecCalculator(int usecs[], int size) {
-    // 1 microsecond = 1×10**-6 seconds
-    // 1 second = 1×10**6 microseconds
-    int total = 0;
-    for (int i = 0; i < size; i++) {
-        total += usecs[i];
-    }
-    printf("%d \n", total);
-    return total;
-}
-
-int convertUsecToInt(char *usecStrings[], int size) {
-    int usecInts[size];
-    for (int i = 0; i < size; i++) {
-        char uInt[30];
-        strncpy(uInt, usecStrings[i], strlen(usecStrings[i]) - 5); // remove the "usecs"
-        uInt[strlen(usecStrings[i]) - 5] = '\0';
-        usecInts[i] = atoi(uInt);
-        printf("%d\n", usecInts[i]);
-    }
-    usecCalculator(usecInts, size);
-    return 0; // how do i return the array of usecInts without error
-}
-
-// main execute commands function
 void execute_commands(void)
 {
     /*
@@ -214,12 +221,33 @@ void execute_commands(void)
     else if ...
     */
 }
+void printCommandStorage(CommandStorage *storage) {
+    for (int i = 0; i < storage->num_commands; i++) {
+        Command command = storage->commands[i];
+        printf("Command %d: %s\n", i, command.name);
+        for (int j = 0; j < command.num_syscalls; j++) {
+            Syscall syscall = command.syscalls[j];
+            printf("    Syscall %d: %dusecs %s %s %s\n", j, syscall.elapsed_time, syscall.syscall, syscall.arg1, syscall.arg2);
+        }
+    }
+}
+
+void printDeviceStorage(DeviceStorage *storage) {
+    for (int i = 0; i < storage->num_devices; i++) {
+        DeviceInfo device = storage->devices[i];
+        printf("Device %d: %s, %lldBps, %lldBps\n", i, device.devicename, device.readspeed, device.writespeed);
+    }
+}
 
 
 //  ----------------------------------------------------------------------
 
 int main(int argc, char *argv[])
 {
+    CommandStorage commandStorage;
+    DeviceStorage deviceStorage;
+    initializeCommandStorage(&commandStorage);
+    initializeDeviceStorage(&deviceStorage);
 //  ENSURE THAT WE HAVE THE CORRECT NUMBER OF COMMAND-LINE ARGUMENTS
     if(argc != 3) {
         printf("Usage: %s sysconfig-file command-file\n", argv[0]);
@@ -227,13 +255,17 @@ int main(int argc, char *argv[])
     }
 
 //  READ THE SYSTEM CONFIGURATION FILE
-    read_sysconfig(argv[0], argv[1]);
+    read_sysconfig(argv[0], argv[1], &deviceStorage);
 
 //  READ THE COMMAND FILE
-    read_commands(argv[0], argv[2]);
+    read_commands(argv[0], argv[2], &commandStorage);
+
+    printCommandStorage(&commandStorage);
+    printDeviceStorage(&deviceStorage);
+
 
 //  EXECUTE COMMANDS, STARTING AT FIRST IN command-file, UNTIL NONE REMAIN
-    //execute_commands();
+ //   execute_commands();
 
 //  PRINT THE PROGRAM'S RESULTS
     printf("measurements  %i  %i\n", 0, 0);
@@ -242,3 +274,4 @@ int main(int argc, char *argv[])
 }
 
 //  vim: ts=8 sw=4
+
