@@ -13,7 +13,7 @@ TODO LIST
 
 
 1. Read both files sysconfig and commands
-2. Store respective in data-structures for further access
+2. Store respective in data-structures for further access - DONE
     SYSCONFIG
         DEVICE
         READSPEED

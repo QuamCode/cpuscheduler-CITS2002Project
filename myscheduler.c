@@ -42,6 +42,11 @@
 
 #define CHAR_COMMENT                    '#'
 
+
+
+
+
+
 //Create a struct for the device info
 typedef struct {
     char devicename[MAX_DEVICE_NAME];
@@ -75,6 +80,36 @@ typedef struct {
     Command commands[MAX_COMMANDS];
     int num_commands;
 } CommandStorage;
+
+
+//  ----------------------------------------------------------------------
+//  CPU EXECUTION QUEUE
+
+//  Define the states
+typedef enum {NEW, READY, RUNNING, BLOCKEDm, EXIT} State;
+
+//Create a struct for the process
+typedef struct {
+    Command command;
+    State state;
+} Process;
+
+//Create a struct for the queue
+typedef struct {
+    Process processes[MAX_RUNNING_PROCESSES];
+    int num_processes;
+} Queue;
+
+
+//  ----------------------------------------------------------------------
+
+
+
+
+
+
+
+
 
 
 
@@ -215,15 +250,79 @@ void read_commands(char argv0[], char filename[], CommandStorage *commandStorage
 
 //  ----------------------------------------------------------------------
 
-void execute_commands(void)
+void execute_commands(CommandStorage *commandStorage, DeviceStorage *deviceStorage)
 {
-    /*
-    if ("wait" in line) {
-        // wait
+
+    //Create a queue for each state
+    Queue readyQueue;
+    Queue runningQueue;
+    Queue blockedQueue;
+    Queue exitQueue;
+
+    //Initialize the queues
+    readyQueue.num_processes = 0;
+    runningQueue.num_processes = 0;
+    blockedQueue.num_processes = 0;
+    exitQueue.num_processes = 0;
+
+    //Create an initial process for each command
+    for (int i = 0; i < commandStorage->num_commands; i++) {
+        Process process;
+        process.command = commandStorage->commands[i];
+        process.state = READY;
+        readyQueue.processes[newQueue.num_processes++] = process;
     }
-    else if ...
-    */
+
+    //Execute from the first command
+    while (readyQueue.num_processes > 0) {
+        //Get the first process in the new queue
+        Process process = readyQueue.processes[0];
+        //Set the state to ready
+        process.state = RUNNING;
+        //Add the process to the ready queue
+        runningQueue.processes[readyQueue.num_processes++] = process;
+        //Remove the process from the new queue
+        for (int i = 0; i < readyQueue.num_processes; i++) {
+            readyQueue.processes[i] = newQueue.processes[i+1];
+        }
+        readyQueue.num_processes--;
+
+        //Execute the system calls
+        while (process.command.num_syscalls > 0) {
+            Syscall syscall = process.command.syscalls[0];
+            printf("Syscall: %s\n", syscall.syscall);
+            if (strcmp(syscall.syscall, "sleep") == 0) {
+                // Sleep
+                        process.state = BLOCKED;
+            } else if (strcmp(syscall.syscall, "write") == 0) {
+                // Write to device
+                        process.state = BLOCKED;
+                    
+            } else if (strcmp(syscall.syscall, "read") == 0) {
+                // Read from device
+                    process.state = BLOCKED;
+                
+            } else if (strcmp(syscall.syscall, "spawn") == 0) {
+                // Spawn
+                printf("Spawning\n");
+                process.state = BLOCKED;
+            } else if (strcmp(syscall.syscall, "wait") == 0) {
+                // Wait
+                printf("Waiting\n");
+                process.state = BLOCKED;
+            }
+            else if (strcmp(syscall.syscall, "exit") == 0) {
+                // Exit
+                printf("Exiting\n");
+                process.command.num_syscalls = 0;
+                process.state = BLOCKED;
+            } else {
+                printf("Error: Unknown syscall %s\n", syscall.syscall);
+            }
+    }
 }
+}
+
 void printCommandStorage(CommandStorage *storage) {
     for (int i = 0; i < storage->num_commands; i++) {
         Command command = storage->commands[i];
@@ -268,7 +367,7 @@ int main(int argc, char *argv[])
 
 
 //  EXECUTE COMMANDS, STARTING AT FIRST IN command-file, UNTIL NONE REMAIN
- //   execute_commands();
+   execute_commands(&commandStorage, &deviceStorage);
 
 //  PRINT THE PROGRAM'S RESULTS
     printf("measurements  %i  %i\n", 0, 0);
