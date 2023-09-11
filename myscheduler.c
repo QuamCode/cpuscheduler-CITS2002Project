@@ -153,7 +153,7 @@ void read_sysconfig(char argv0[], char filename[], DeviceStorage *deviceStorage)
 }
 
 
-void read_commands(char argv0[], char filename[], CommandStorage *storage)
+void read_commands(char argv0[], char filename[], CommandStorage *commandStorage)
 {
     // open the commands file
     FILE *fp = fopen(filename, "r");
@@ -174,7 +174,7 @@ void read_commands(char argv0[], char filename[], CommandStorage *storage)
         if (buffer[0] != '\t'){
             //Only add the previous current command once we come across a new command
             if (newCommand) {
-                addCommand(storage, current_command);
+                addCommand(commandStorage, current_command);
                 current_command.num_syscalls = 0;
                 newCommand = 0;
             }
@@ -206,7 +206,7 @@ void read_commands(char argv0[], char filename[], CommandStorage *storage)
     }
     // Add the last command
     if (newCommand) {
-        addCommand(storage, current_command);
+        addCommand(commandStorage, current_command);
     }
 
     // finished with the file
