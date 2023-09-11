@@ -48,14 +48,14 @@ typedef struct {
     long long readspeed;
     long long writespeed;
 } DeviceInfo;
-
+//Create a struct for the device storage
 typedef struct {
     DeviceInfo devices[MAX_DEVICES];
     int num_devices;
 } DeviceStorage;
 
 
-
+//Create a struct for the syscall
 typedef struct {
     char syscall[MAX_COMMAND_NAME];
     int elapsed_time;
@@ -63,12 +63,14 @@ typedef struct {
     char arg2[MAX_COMMAND_NAME];
 } Syscall;
 
+//Create a struct for the command
 typedef struct {
     char name[MAX_COMMAND_NAME];
     Syscall syscalls[MAX_SYSCALLS_PER_PROCESS];
     int num_syscalls;
 } Command;
 
+//Create a struct for the command storage
 typedef struct {
     Command commands[MAX_COMMANDS];
     int num_commands;
@@ -136,6 +138,7 @@ void read_sysconfig(char argv0[], char filename[], DeviceStorage *deviceStorage)
                     device.writespeed = writespeed;
                     addDevice(deviceStorage, device);
                 }
+                //No idea what this is for
             } else if (strcmp(token, "timequantum") == 0) {
                 int timequantum;
                 if (sscanf(buffer, "%*s %d", &timequantum) == 1) {
