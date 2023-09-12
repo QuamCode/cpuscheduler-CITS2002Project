@@ -103,7 +103,7 @@ typedef struct {
     int rear;
 } Queue;
 
-
+Queue readyQueue, runningQueue, blockedQueue, exitQueue;
 //  ----------------------------------------------------------------------
 
 void initializeQueue(Queue *queue) {
@@ -146,11 +146,44 @@ Process dequeue(Queue *queue) {
     }
 }
 
+void executeSyscall(Process *process, DeviceStorage *deviceStorage) {
+    for (int i = 0; i < process->command.num_syscalls; i++) {
+            Syscall syscall = process->command.syscalls[i];
+            printf("Executing syscall %s\n", syscall.syscall);
+            //Check if the syscall is a sleep, read, write, spawn or exit
+            if (strcmp(syscall.syscall, "sleep") == 0) {
+                //Sleep for the elapsed time
+                //syscall.arg1 is the sleep time
+            } else if (strcmp(syscall.syscall, "read") == 0) {
+                //syscall.arg1 is the device name, syscall.arg2 is the number of bytes to read
+                //Check if the device exists
+            } else if (strcmp(syscall.syscall, "write") == 0) {
+                //syscall.arg1 is the device name, syscall.arg2 is the number of bytes to write
+                //Check if the device exists
+            } else if (strcmp(syscall.syscall, "spawn") == 0) {
+                //syscall.arg1 is the command name
+                //Check if the command exists
+            } else if (strcmp(syscall.syscall, "wait") == 0) {
+                //wait for the process to finish
+                //Gotta do some queue stuff
+            } else if (strcmp(syscall.syscall, "exit") == 0) {
+                //Move the process to the exit queue
+                process->state = EXIT;
+                Process process = dequeue(&runningQueue);
+                enqueue(&exitQueue, process);
+                //dequeue from running queue
+                printf("Moving Process ID %d with name %s to exit queue\n", process.id, process.command.name);
+                // break out of the loop - no more syscalls to execute, even though it should technically be the last syscall anyway
+                break;
+            }
+            }
+}
+
 void execute_commands(CommandStorage *commandStorage, DeviceStorage *deviceStorage)
 {
 
     //Create a queue for each state
-    Queue readyQueue, runningQueue, blockedQueue, exitQueue;
+
 
     //Initialize the queues
     initializeQueue(&readyQueue);
@@ -176,38 +209,9 @@ void execute_commands(CommandStorage *commandStorage, DeviceStorage *deviceStora
         enqueue(&runningQueue, process);
         printf("Moving Process ID %d with name %s to running queue\n", process.id, process.command.name);
         //Execute the process syscalls
-        for (int i = 0; i < process.command.num_syscalls; i++) {
-            Syscall syscall = process.command.syscalls[i];
-            printf("Executing syscall %s\n", syscall.syscall);
-            //Check if the syscall is a sleep, read, write, spawn or exit
-            if (strcmp(syscall.syscall, "sleep") == 0) {
-                //Sleep for the elapsed time
-            } else if (strcmp(syscall.syscall, "read") == 0) {
-                //Check if the device exists
-            } else if (strcmp(syscall.syscall, "write") == 0) {
-                //Check if the device exists
-            } else if (strcmp(syscall.syscall, "spawn") == 0) {
-                //Check if the command exists
-            } else if (strcmp(syscall.syscall, "wait") == 0) {
-                //wait for the process to finish
-            } else if (strcmp(syscall.syscall, "exit") == 0) {
-                //Move the process to the exit queue
-                process.state = EXIT;
-                enqueue(&exitQueue, process);
-                //dequeue from running queue
-                dequeue(&runningQueue);
-                printf("Moving Process ID %d with name %s to exit queue\n", process.id, process.command.name);
-                // break out of the loop - no more syscalls to execute, even though it should technically be the last syscall anyway
-                break;
-            }
-                        }
-                   }
-                    }
-
-
-
-
-
+        executeSyscall(&process, deviceStorage);
+        }
+    }
 
 
 void initializeCommandStorage(CommandStorage *storage) {
