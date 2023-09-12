@@ -42,7 +42,7 @@
 
 #define CHAR_COMMENT                    '#'
 
-
+#define MAX_QUEUE_SIZE                  MAX_RUNNING_PROCESSES
 
 
 
@@ -86,26 +86,123 @@ typedef struct {
 //  CPU EXECUTION QUEUE
 
 //  Define the states
-typedef enum {NEW, READY, RUNNING, BLOCKEDm, EXIT} State;
+typedef enum {READY, RUNNING, BLOCKEDm, EXIT} State;
 
 //Create a struct for the process
 typedef struct {
     Command command;
     State state;
+    int id;
 } Process;
 
 //Create a struct for the queue
 typedef struct {
     Process processes[MAX_RUNNING_PROCESSES];
     int num_processes;
+    int front;
+    int rear;
 } Queue;
 
 
 //  ----------------------------------------------------------------------
 
+void initializeQueue(Queue *queue) {
+    queue->num_processes = 0;
+    queue->front = 0;
+    queue->rear = -1;
+}
+
+int isEmpty(Queue *queue) {
+    return queue->num_processes == 0;
+}
+
+// Check if the queue is full
+int isFull(Queue *queue) {
+    return queue->num_processes == MAX_QUEUE_SIZE;
+}
 
 
+void enqueue(Queue *queue, Process process) {
+    if(isFull(queue)) {
+        printf("Error: Queue is full\n");
+    } else {
+        queue->rear = (queue->rear + 1) % MAX_QUEUE_SIZE;
+        queue->processes[queue->rear] = process;
+        queue->num_processes++;
+    }
 
+}
+
+Process dequeue(Queue *queue) {
+    if(isEmpty(queue)) {
+        printf("Error: Queue is empty\n");
+        Process process;
+        return process;
+    } else {
+        Process process = queue->processes[queue->front];
+        queue->front = (queue->front + 1) % MAX_QUEUE_SIZE;
+        queue->num_processes--;
+        return process;
+    }
+}
+
+void execute_commands(CommandStorage *commandStorage, DeviceStorage *deviceStorage)
+{
+
+    //Create a queue for each state
+    Queue readyQueue, runningQueue, blockedQueue, exitQueue;
+
+    //Initialize the queues
+    initializeQueue(&readyQueue);
+    initializeQueue(&runningQueue);
+    initializeQueue(&blockedQueue);
+    initializeQueue(&exitQueue);
+
+    //Create an initial process for each command add it to the ready queue
+    for (int i = 0; i < commandStorage->num_commands; i++) {
+        Process process;
+        process.command = commandStorage->commands[i];
+        process.state = READY;
+        process.id = i;
+        enqueue(&readyQueue, process);
+        printf("Adding Process ID %d with name %s to ready queue\n", i, process.command.name);
+    }
+
+    // While there are still processes in the ready queue execute them and move them to the running queue
+
+    while (!isEmpty(&readyQueue)) {
+        Process process = dequeue(&readyQueue);
+        process.state = RUNNING;
+        enqueue(&runningQueue, process);
+        printf("Moving Process ID %d with name %s to running queue\n", process.id, process.command.name);
+        //Execute the process syscalls
+        for (int i = 0; i < process.command.num_syscalls; i++) {
+            Syscall syscall = process.command.syscalls[i];
+            printf("Executing syscall %s\n", syscall.syscall);
+            //Check if the syscall is a sleep, read, write, spawn or exit
+            if (strcmp(syscall.syscall, "sleep") == 0) {
+                //Sleep for the elapsed time
+            } else if (strcmp(syscall.syscall, "read") == 0) {
+                //Check if the device exists
+            } else if (strcmp(syscall.syscall, "write") == 0) {
+                //Check if the device exists
+            } else if (strcmp(syscall.syscall, "spawn") == 0) {
+                //Check if the command exists
+            } else if (strcmp(syscall.syscall, "wait") == 0) {
+                //wait for the process to finish
+            } else if (strcmp(syscall.syscall, "exit") == 0) {
+                //Move the process to the exit queue
+                process.state = EXIT;
+                enqueue(&exitQueue, process);
+                //dequeue from running queue
+                dequeue(&runningQueue);
+                printf("Moving Process ID %d with name %s to exit queue\n", process.id, process.command.name);
+                // break out of the loop - no more syscalls to execute, even though it should technically be the last syscall anyway
+                break;
+            }
+                        }
+                   }
+                    }
 
 
 
@@ -250,78 +347,6 @@ void read_commands(char argv0[], char filename[], CommandStorage *commandStorage
 
 //  ----------------------------------------------------------------------
 
-void execute_commands(CommandStorage *commandStorage, DeviceStorage *deviceStorage)
-{
-
-    //Create a queue for each state
-    Queue readyQueue;
-    Queue runningQueue;
-    Queue blockedQueue;
-    Queue exitQueue;
-
-    //Initialize the queues
-    readyQueue.num_processes = 0;
-    runningQueue.num_processes = 0;
-    blockedQueue.num_processes = 0;
-    exitQueue.num_processes = 0;
-
-    //Create an initial process for each command
-    for (int i = 0; i < commandStorage->num_commands; i++) {
-        Process process;
-        process.command = commandStorage->commands[i];
-        process.state = READY;
-        readyQueue.processes[newQueue.num_processes++] = process;
-    }
-
-    //Execute from the first command
-    while (readyQueue.num_processes > 0) {
-        //Get the first process in the new queue
-        Process process = readyQueue.processes[0];
-        //Set the state to ready
-        process.state = RUNNING;
-        //Add the process to the ready queue
-        runningQueue.processes[readyQueue.num_processes++] = process;
-        //Remove the process from the new queue
-        for (int i = 0; i < readyQueue.num_processes; i++) {
-            readyQueue.processes[i] = newQueue.processes[i+1];
-        }
-        readyQueue.num_processes--;
-
-        //Execute the system calls
-        while (process.command.num_syscalls > 0) {
-            Syscall syscall = process.command.syscalls[0];
-            printf("Syscall: %s\n", syscall.syscall);
-            if (strcmp(syscall.syscall, "sleep") == 0) {
-                // Sleep
-                        process.state = BLOCKED;
-            } else if (strcmp(syscall.syscall, "write") == 0) {
-                // Write to device
-                        process.state = BLOCKED;
-                    
-            } else if (strcmp(syscall.syscall, "read") == 0) {
-                // Read from device
-                    process.state = BLOCKED;
-                
-            } else if (strcmp(syscall.syscall, "spawn") == 0) {
-                // Spawn
-                printf("Spawning\n");
-                process.state = BLOCKED;
-            } else if (strcmp(syscall.syscall, "wait") == 0) {
-                // Wait
-                printf("Waiting\n");
-                process.state = BLOCKED;
-            }
-            else if (strcmp(syscall.syscall, "exit") == 0) {
-                // Exit
-                printf("Exiting\n");
-                process.command.num_syscalls = 0;
-                process.state = BLOCKED;
-            } else {
-                printf("Error: Unknown syscall %s\n", syscall.syscall);
-            }
-    }
-}
-}
 
 void printCommandStorage(CommandStorage *storage) {
     for (int i = 0; i < storage->num_commands; i++) {
