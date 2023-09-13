@@ -1,0 +1,11 @@
+cal
+	80usecs	write   terminal 2000B
+	90usecs	exit
+#
+shell
+	100usecs   write   terminal 10B
+	120usecs   read	terminal 4B
+	220usecs   spawn   cal
+	230usecs   wait
+	1000usecs  exit
+#
