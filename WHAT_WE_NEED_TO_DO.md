@@ -21,9 +21,12 @@ When a data transfer completes, all waiting (queued) processes are consider to d
 - [ ] 3. **Implement all Context Switches adding to the execution time**
 
 It takes 5 microseconds to perform a context-switch - to move one process from Ready → Running
-It also takes 10 microseconds to move a process from Running → Blocked, Running → Ready, and Blocked → Ready
-It takes 20 microseconds for any process to first acquire the data-bus.
 
+It also takes 10 microseconds to move a process from:
+
+Running → Blocked, Running → Ready, and Blocked → Ready
+
+It takes 20 microseconds for any process to first acquire the data-bus.
 
 
 it calls exit, RUNNING→EXIT (0 usecs).
@@ -41,12 +44,19 @@ When the process is asleep, move it to blocked queue
 - [ ] 5. **CPU idle check (When no processes are running)**
 
 When the CPU is idle (no process or the OS is using the CPU), perform the following in this order:
+
 unblock any sleeping processes
+
 unblock any processes waiting for all their spawned processes (children) to terminate
+
 unblock any completed I/O
+
 commence any pending I/O
+
 commence/resume the next READY process
+
 otherwise the CPU remains idle...
+
 
 
 - [ ] 5. **Final Output**
