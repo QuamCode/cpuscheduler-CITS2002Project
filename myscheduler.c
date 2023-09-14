@@ -222,6 +222,12 @@ void executeSyscall(Process* process, DeviceStorage* deviceStorage, CommandStora
             int sleeptime = convertToInt(syscall.arg1);
             printf("%ssleeping for %d usecs%s\n", COLOUR_CYAN, sleeptime, COLOUR_NORMAL);
             process->total_time += sleeptime;
+
+            //sleeps for a requested time (at which time the process is marked as Blocked until the requested time elapses)
+            
+
+
+
         } else if (strcmp(syscall.syscall, "read") == 0) {
             printf("%sExecuting syscall %s%s\n", COLOUR_CYAN, syscall.syscall, COLOUR_NORMAL);
             // syscall.arg1 is the device name, syscall.arg2 is the number of bytes to read
@@ -287,12 +293,21 @@ void executeSyscall(Process* process, DeviceStorage* deviceStorage, CommandStora
                     processID++;
                     spawnedProcess.parent_id = process->id;
                     enqueue(&readyQueue, &spawnedProcess);
-                    printf("%sMoving Process ID %d with name %s to ready queue%s\n", COLOUR_YELLOW, spawnedProcess.id, spawnedProcess.command.name, COLOUR_NORMAL);
+                    printf("%sMoving Spawned Process ID %d with name %s to ready queue%s\n", COLOUR_YELLOW, spawnedProcess.id, spawnedProcess.command.name, COLOUR_NORMAL);
+
+                    //Move the parent process to the ready queue
+                    process->state = READY;
+                    process->current_call = i + 1;
+                    enqueue(&readyQueue, process);
+                    dequeue(&runningQueue, process);
+                    printf("%sMoving Process ID %d with name %s to ready queue (spawned Process) %s\n", COLOUR_YELLOW, process->id, process->command.name, COLOUR_NORMAL);
                     commandFound = 1;
                     break;
                 }
             }
-            if (!commandFound) {
+            if (commandFound) {
+                break;
+            } else {
                 printf("%sCommand %s not found%s\n", COLOUR_RED, commandName, COLOUR_NORMAL);
             }
         } else if (strcmp(syscall.syscall, "wait") == 0) {
@@ -308,14 +323,17 @@ void executeSyscall(Process* process, DeviceStorage* deviceStorage, CommandStora
             }
 
             if (processToWaitFor == -1) {
-                // Check if there are any child processes in the running queue
-                for (int k = 0; k < runningQueue.num_processes; k++) {
-                    if (runningQueue.processes[k]->parent_id == process->id) {
-                        processToWaitFor = runningQueue.processes[k]->id;
+                // Check if there are any child processes already finished
+                for (int j = exitQueue.front; j != (exitQueue.rear + 1) % MAX_QUEUE_SIZE; j = (j + 1) % MAX_QUEUE_SIZE) {
+                    if (exitQueue.processes[j]->parent_id == process->id) {
+                        processToWaitFor = -1;
                         break;
                     }
                 }
+                
             }
+
+
 
             if (processToWaitFor != -1) {
                 process->current_call = i + 1;
@@ -330,7 +348,14 @@ void executeSyscall(Process* process, DeviceStorage* deviceStorage, CommandStora
                 // Stop executing the process
                 break;
             } else {
-                printf("No child process to wait for\n");
+                process->current_call = i + 1;
+                printf("No child process to wait for or child has already finished.\n");
+                //Move to ready queue
+                process->state = READY;
+                enqueue(&readyQueue, process);
+                dequeue(&runningQueue, process);
+                printf("%sMoving Process ID %d with name %s to ready queue%s\n", COLOUR_YELLOW, process->id, process->command.name, COLOUR_NORMAL);
+                break;
             }
         } else if (strcmp(syscall.syscall, "exit") == 0) {
             printf("%sExecuting syscall %s%s\n", COLOUR_CYAN, syscall.syscall, COLOUR_NORMAL);
@@ -360,7 +385,13 @@ void executeSyscall(Process* process, DeviceStorage* deviceStorage, CommandStora
                     }
                 }
             }
-            // break out of the loop - no more syscalls to execute, even though it should technically be the last syscall anyway
+            //Check Time Quantum and move to ready queue if greater than defined limit
+            if (process->total_time > DEFAULT_TIME_QUANTUM) {
+                process->state = READY;
+                //enqueue(&readyQueue, process);
+                printf("%sMoving Process ID %d with name %s to ready queue%s\n", COLOUR_YELLOW, process->id, process->command.name, COLOUR_NORMAL);
+            }
+
             break;
         }
     }
