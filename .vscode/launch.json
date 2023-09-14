@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "cppdbg",
+      "request": "launch",
+      "args": ["sysconfig", "commands"],
+      "stopAtEntry": false,
+      "externalConsole": true,
+      "cwd": "c:/Users/icall/OneDrive/Desktop/AgentsProject/CITS2002Project",
+      "program": "c:/Users/icall/OneDrive/Desktop/AgentsProject/CITS2002Project/build/Debug/outDebug",
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    }
+  ]
+}

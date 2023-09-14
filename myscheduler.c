@@ -94,6 +94,9 @@ typedef struct {
     int num_commands;
 } CommandStorage;
 
+#define MAX_WAITING_PROCESSES 10
+int waitingProcesses[MAX_WAITING_PROCESSES];
+int numWaitingProcesses = 0;
 //  ----------------------------------------------------------------------
 
 /* CPU EXECUTION QUEUE */
@@ -106,7 +109,7 @@ typedef struct {
     Command command;
     State state;
     int id;
-    int waiting_process_id;
+    int waiting_for_process_id;
     int parent_id;
     int current_call;
     int total_time;
@@ -114,63 +117,74 @@ typedef struct {
 
 //Create a struct for the queue
 typedef struct {
-    Process processes[MAX_RUNNING_PROCESSES];
+    Process* processes[MAX_RUNNING_PROCESSES];
     int num_processes;
     int front;
     int rear;
-    int waiting_process_id;
 } Queue;
-
+int processID = 0;
 Queue readyQueue, runningQueue, blockedQueue, exitQueue;
 CommandStorage commandStorage;
 DeviceStorage deviceStorage;
 
-void initializeQueue(Queue *queue) {
+void initializeQueue(Queue* queue) {
     queue->num_processes = 0;
     queue->front = 0;
     queue->rear = -1;
 }
 
-void initProcess(Process *process) {
+void initProcess(Process* process) {
     process->state = READY;
+    process->current_call = 0;
     process->id = -1;
     process->parent_id = -1;
-    process->waiting_process_id = -1;
+    process->waiting_for_process_id = -1;
 
 }
 
-int isEmpty(Queue *queue) {
+int isEmpty(Queue* queue) {
     return queue->num_processes == 0;
 }
 
 // Check if the queue is full
-int isFull(Queue *queue) {
+int isFull(Queue* queue) {
     return queue->num_processes == MAX_QUEUE_SIZE;
 }
 
 
-void enqueue(Queue *queue, Process process) {
-    if(isFull(queue)) {
+
+int enqueue(Queue* queue, const Process* process) {
+    if (isFull(queue)) {
         printf("%sError: Queue is full%s\n", COLOUR_RED, COLOUR_NORMAL);
+        return 0; // Return 0 to indicate failure
     } else {
         queue->rear = (queue->rear + 1) % MAX_QUEUE_SIZE;
-        queue->processes[queue->rear] = process;
+        // Create a copy of the process and enqueue the copy
+        Process* processCopy = malloc(sizeof(Process));
+        if (processCopy == NULL) {
+            // Handle memory allocation error
+            printf("%sError: Memory allocation failed%s\n", COLOUR_RED, COLOUR_NORMAL);
+            return 0;
+        }
+        *processCopy = *process; // Copy the process data
+        queue->processes[queue->rear] = processCopy;
         queue->num_processes++;
+        return 1; // Return 1 to indicate success
     }
-
 }
 
-Process dequeue(Queue *queue) {
-    if(isEmpty(queue)) {
+int dequeue(Queue* queue, Process* process) {
+    if (isEmpty(queue)) {
         printf("%sError: Queue is empty%s\n", COLOUR_RED, COLOUR_NORMAL);
-        Process process;
-        initProcess(&process);
-        return process;
+        return 0; // Return 0 to indicate failure
     } else {
-        Process process = queue->processes[queue->front];
+        // Dequeue the process
+        *process = *(queue->processes[queue->front]);
+        // Free the memory of the dequeued process
+        free(queue->processes[queue->front]);
         queue->front = (queue->front + 1) % MAX_QUEUE_SIZE;
         queue->num_processes--;
-        return process;
+        return 1; // Return 1 to indicate success
     }
 }
 
@@ -187,176 +201,204 @@ int convertToInt(char value[]) {
 double deviceCalculator(int speed, int amount) {
     double f_speed = (float)speed;
     double f_amount = (float)amount;
-    double secondsTaken = f_amount/f_speed;
+    double secondsTaken = f_amount / f_speed;
     // 1 second = 1000000 microseconds
     int usecsTaken = secondsTaken * 1000000;
     return usecsTaken;
 }
 
-void executeSyscall(Process *process, DeviceStorage *deviceStorage, CommandStorage *commandStorage) {
-    //printf("bps conversions: %d %d\n", readspeed, writespeed);
+
+void executeSyscall(Process* process, DeviceStorage* deviceStorage, CommandStorage* commandStorage) {
+    // Loop through syscalls
     for (int i = process->current_call; i < process->command.num_syscalls; i++) {
         process->current_call = i;
         Syscall syscall = process->command.syscalls[i];
-        //Check if the syscall is a sleep, read, write, spawn or exit
+
+        // Check if the syscall is a sleep, read, write, spawn, or exit
         if (strcmp(syscall.syscall, "sleep") == 0) {
-            printf("Executing syscall %s\n", syscall.syscall);
-            //syscall.arg1 is the sleep time
-            //Sleep for the elapsed time
+            printf("%sExecuting syscall %s%s\n", COLOUR_CYAN, syscall.syscall, COLOUR_NORMAL);
+            // syscall.arg1 is the sleep time
+            // Sleep for the elapsed time
             int sleeptime = convertToInt(syscall.arg1);
-            printf("sleeping for %d usecs\n", sleeptime);
+            printf("%ssleeping for %d usecs%s\n", COLOUR_CYAN, sleeptime, COLOUR_NORMAL);
             process->total_time += sleeptime;
         } else if (strcmp(syscall.syscall, "read") == 0) {
-            printf("Executing syscall %s\n", syscall.syscall);
-            //syscall.arg1 is the device name, syscall.arg2 is the number of bytes to read
-            //Check if the device exists
+            printf("%sExecuting syscall %s%s\n", COLOUR_CYAN, syscall.syscall, COLOUR_NORMAL);
+            // syscall.arg1 is the device name, syscall.arg2 is the number of bytes to read
+            // Check if the device exists
             char devicename[MAX_DEVICE_NAME];
             strcpy(devicename, syscall.arg1);
-            //int deviceInStorage = 1;
             long long readspeed;
             double readtime;
             int bytes = convertToInt(syscall.arg2);
-            for (int j = 0; j < deviceStorage->num_devices; j++){
+            int deviceInStorage = 0;
+            for (int j = 0; j < deviceStorage->num_devices; j++) {
                 if (strcmp(deviceStorage->devices[j].devicename, syscall.arg1) == 0) {
-                    //deviceInStorage = 0;
+                    deviceInStorage = 1;
                     readspeed = deviceStorage->devices[j].readspeed;
                     readtime = deviceCalculator(readspeed, bytes);
                     break;
                 }
             }
-            printf("device %s will read %d bytes in %f usecs.\n", devicename, bytes, readtime);
-            syscall.elapsed_time += readtime;
+            if (deviceInStorage) {
+                printf("%sdevice %s will read %d bytes in %f usecs.%s\n", COLOUR_GREEN, devicename, bytes, readtime, COLOUR_NORMAL);
+                syscall.elapsed_time += readtime;
+            } else {
+                printf("%sDevice %s not found%s\n", COLOUR_RED, devicename, COLOUR_NORMAL);
+            }
         } else if (strcmp(syscall.syscall, "write") == 0) {
-            printf("Executing syscall %s\n", syscall.syscall);
-            //syscall.arg1 is the device name, syscall.arg2 is the number of bytes to write
-            //Check if the device exists
+            printf("%sExecuting syscall %s%s\n", COLOUR_CYAN, syscall.syscall, COLOUR_NORMAL);
+            // syscall.arg1 is the device name, syscall.arg2 is the number of bytes to write
+            // Check if the device exists
             char devicename[MAX_DEVICE_NAME];
             strcpy(devicename, syscall.arg1);
-            //int deviceInStorage = 1;
             long long writespeed;
             double writetime;
             int bytes = convertToInt(syscall.arg2);
-            for (int j = 0; j < deviceStorage->num_devices; j++){
+            int deviceInStorage = 0;
+            for (int j = 0; j < deviceStorage->num_devices; j++) {
                 if (strcmp(deviceStorage->devices[j].devicename, syscall.arg1) == 0) {
-                    //deviceInStorage = 0;
+                    deviceInStorage = 1;
                     writespeed = deviceStorage->devices[j].writespeed;
                     writetime = deviceCalculator(writespeed, bytes);
                     break;
                 }
             }
-            printf("device %s will write %d bytes in %f usecs.\n", devicename, bytes, writetime);
-            syscall.elapsed_time += writetime;
-
-
-
-
+            if (deviceInStorage) {
+                printf("%sdevice %s will write %d bytes in %f usecs.%s\n", COLOUR_GREEN, devicename, bytes, writetime, COLOUR_NORMAL);
+                syscall.elapsed_time += writetime;
+            } else {
+                printf("%sDevice %s not found%s\n", COLOUR_RED, devicename, COLOUR_NORMAL);
+            }
         } else if (strcmp(syscall.syscall, "spawn") == 0) {
-
-
-            printf("Executing syscall %s\n", syscall.syscall);
-            //syscall.arg1 is the command name
-
+            printf("%sExecuting syscall %s%s\n", COLOUR_CYAN, syscall.syscall, COLOUR_NORMAL);
+            // syscall.arg1 is the command name
             char commandName[MAX_COMMAND_NAME];
             strcpy(commandName, syscall.arg1);
             int commandFound = 0;
-            for (int j = 0; j < commandStorage->num_commands; j++){
-                if (strcmp(commandStorage->commands[j].name, commandName) == 0){
+            for (int j = 0; j < commandStorage->num_commands; j++) {
+                if (strcmp(commandStorage->commands[j].name, commandName) == 0) {
                     Process spawnedProcess;
                     initProcess(&spawnedProcess);
                     spawnedProcess.command = commandStorage->commands[j];
                     spawnedProcess.state = READY;
+                    //0 usecs
                     spawnedProcess.id = process->id + 1;
+                    processID++;
                     spawnedProcess.parent_id = process->id;
-                    enqueue(&readyQueue, spawnedProcess);
-                    printf("Moving Process ID %d with name %s to ready queue\n", spawnedProcess.id, spawnedProcess.command.name);
+                    enqueue(&readyQueue, &spawnedProcess);
+                    printf("%sMoving Process ID %d with name %s to ready queue%s\n", COLOUR_YELLOW, spawnedProcess.id, spawnedProcess.command.name, COLOUR_NORMAL);
                     commandFound = 1;
                     break;
                 }
             }
-            if (!commandFound){
+            if (!commandFound) {
                 printf("%sCommand %s not found%s\n", COLOUR_RED, commandName, COLOUR_NORMAL);
             }
-           
-            //Check if the command exists
         } else if (strcmp(syscall.syscall, "wait") == 0) {
-            printf("Executing syscall %s\n", syscall.syscall);
-            if (!isEmpty(&runningQueue)) {
-                process->state = BLOCKED;
-                process->waiting_process_id = runningQueue.processes[0].id;
-                printf("Moving Process ID %d with name %s to blocked queue\n", process->id, process->command.name);
-                printf("Waiting for process ID %d\n", process->waiting_process_id);
-                //Stop executing the process
-                process->current_call = i + 1;
-                break;
+            printf("%sExecuting syscall %s%s\n", COLOUR_CYAN, syscall.syscall, COLOUR_NORMAL);
+            int processToWaitFor = -1;
+
+            // Check if there are any child processes in the ready queue
+            for (int j = readyQueue.front; j != (readyQueue.rear + 1) % MAX_QUEUE_SIZE; j = (j + 1) % MAX_QUEUE_SIZE) {
+                if (readyQueue.processes[j]->parent_id == process->id) {
+                    processToWaitFor = readyQueue.processes[j]->id;
+                    break;
+                }
             }
-            else {
-                printf("No process to wait for\n");
+
+            if (processToWaitFor == -1) {
+                // Check if there are any child processes in the running queue
+                for (int k = 0; k < runningQueue.num_processes; k++) {
+                    if (runningQueue.processes[k]->parent_id == process->id) {
+                        processToWaitFor = runningQueue.processes[k]->id;
+                        break;
+                    }
+                }
+            }
+
+            if (processToWaitFor != -1) {
+                process->current_call = i + 1;
+                printf("Process to wait for: %d\n", processToWaitFor);
+                process->state = BLOCKED;
+                process->waiting_for_process_id = processToWaitFor;
+                printf("%sMoving Process ID %d with name %s to blocked queue%s\n", COLOUR_YELLOW, process->id, process->command.name, COLOUR_NORMAL);
+                enqueue(&blockedQueue, process);
+                dequeue(&runningQueue, process);
+                // Add the process to the waiting list
+                waitingProcesses[numWaitingProcesses++] = process->id;
+                // Stop executing the process
+                break;
+            } else {
+                printf("No child process to wait for\n");
             }
         } else if (strcmp(syscall.syscall, "exit") == 0) {
-            printf("Executing syscall %s\n", syscall.syscall);
-            //Move the process to the exit queue
+            printf("%sExecuting syscall %s%s\n", COLOUR_CYAN, syscall.syscall, COLOUR_NORMAL);
+            // Move the process to the exit queue
             process->state = EXIT;
-            Process process = dequeue(&runningQueue);
             enqueue(&exitQueue, process);
-            //dequeue from running queue
-            printf("Moving Process ID %d with name %s to exit queue\n", process.id, process.command.name);
+            dequeue(&runningQueue, process);
+            printf("%sMoving Process ID %d with name %s to exit queue%s\n", COLOUR_YELLOW, process->id, process->command.name, COLOUR_NORMAL);
+            // Check if there are any waiting processes for the exited process
+            for (int l = 0; l < numWaitingProcesses; l++) {
+                int waitingProcessID = waitingProcesses[l];
+                if (waitingProcessID == process->parent_id) {
+                    // Unblock the waiting process and move it back to the ready queue
+                    for (int o = blockedQueue.front; o != (blockedQueue.rear + 1) % MAX_QUEUE_SIZE; o = ( + 1) % MAX_QUEUE_SIZE) {
+                        if (blockedQueue.processes[o]->id == waitingProcessID) {
+                            blockedQueue.processes[o]->state = READY;
+                            enqueue(&readyQueue, blockedQueue.processes[o]);
+                            printf("%sMoving Process ID %d with name %s to ready queue (unblocked)%s\n", COLOUR_YELLOW, waitingProcessID, blockedQueue.processes[o]->command.name, COLOUR_NORMAL);
+                            // Remove the waiting process from the waiting list
+                            for (int p = l; p < numWaitingProcesses - 1; p++) {
+                                waitingProcesses[p] = waitingProcesses[p + 1];
+                            }
+                            numWaitingProcesses--;
+                            l--; // Decrement l to recheck the current position after shifting
+                            break;
+                        }
+                    }
+                }
+            }
             // break out of the loop - no more syscalls to execute, even though it should technically be the last syscall anyway
             break;
         }
     }
 }
 
-void execute_commands(CommandStorage *commandStorage, DeviceStorage *deviceStorage)
-{
-    //Create a queue for each state
+void execute_commands(CommandStorage* commandStorage, DeviceStorage* deviceStorage) {
+    // Create a queue for each state
 
-
-    //Initialize the queues
+    // Initialize the queues
     initializeQueue(&readyQueue);
     initializeQueue(&runningQueue);
     initializeQueue(&blockedQueue);
     initializeQueue(&exitQueue);
 
-    //Create an initial process for each command add it to the ready queue
+    // Create an initial process for each command and add it to the ready queue
     for (int i = 0; i < commandStorage->num_commands; i++) {
         Process process;
+        initProcess(&process);
         process.command = commandStorage->commands[i];
         process.state = READY;
-        process.id = i;
+        process.id = processID++;
         process.parent_id = -1;
-        enqueue(&readyQueue, process);
+        enqueue(&readyQueue, &process);
         printf("Adding Process ID %d with name %s to ready queue\n", i, process.command.name);
     
 
-    // While there are still processes in the ready queue execute them and move them to the running queue
-    while (!isEmpty(&readyQueue) || !isEmpty(&runningQueue)) {
+    // While there are still processes in the running queue or ready queue, execute them
+    while (!isEmpty(&runningQueue) || !isEmpty(&readyQueue)) {
         if (!isEmpty(&readyQueue)) {
-            Process process = dequeue(&readyQueue);
+            dequeue(&readyQueue, &process);
             process.state = RUNNING;
-            enqueue(&runningQueue, process);
+            enqueue(&runningQueue, &process);
             printf("Moving Process ID %d with name %s to running queue\n", process.id, process.command.name);
-            executeSyscall(&process, deviceStorage, commandStorage);
         }
-        if (!isEmpty(&blockedQueue)) {
-            for (int i = 0; i < blockedQueue.num_processes; i++) {
-                Process blockedProcess = blockedQueue.processes[i];
-                int waiting_process_id = blockedProcess.waiting_process_id;
-                int found = 0;
-                for (int j = 0; j < runningQueue.num_processes; j++) {
-                    if (runningQueue.processes[j].id == waiting_process_id) {
-                        found = 1;
-                        break;
-                    }
-                }
-                if (found) {
-                    // Remove the process from the blocked queue
-                    blockedProcess = dequeue(&blockedQueue);
-                    blockedProcess.state = READY;
-                    enqueue(&readyQueue, blockedProcess);
-                    printf("Moving Process ID %d with name %s to ready queue\n", blockedProcess.id, blockedProcess.command.name);
-                    i--; // Decrement i as the queue length has reduced
-                }
-            }
+
+        // Execute processes in the running queue
+        if (!isEmpty(&runningQueue)) {
+            executeSyscall(&process, deviceStorage, commandStorage);
         }
     }
 }
@@ -541,7 +583,7 @@ int main(int argc, char *argv[])
 
 
 //  EXECUTE COMMANDS, STARTING AT FIRST IN command-file, UNTIL NONE REMAIN
-   execute_commands(&commandStorage, &deviceStorage);
+    execute_commands(&commandStorage, &deviceStorage);
 
 //  PRINT THE PROGRAM'S RESULTS
     printf("measurements  %i  %i\n", 0, 0);
@@ -550,4 +592,3 @@ int main(int argc, char *argv[])
 }
 
 //  vim: ts=8 sw=4
-
