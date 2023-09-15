@@ -190,7 +190,7 @@ int dequeue(Queue* queue, Process* process) {
 
 //  ----------------------------------------------------------------------
 
-/* EXECUTE SYSCALL AND COMMANDS */
+/* EXECUTE SYSCALL */
 
 int convertToInt(char value[]) {
     int newVal;
@@ -207,6 +207,13 @@ double deviceCalculator(int speed, int amount) {
     return usecsTaken;
 }
 
+// oh you already did that
+int timeQuantumCheck(int time) {
+    if (time == DEFAULT_TIME_QUANTUM || time > DEFAULT_TIME_QUANTUM) {
+        return 0; // if time exceeds 100 which is default time quantum
+    }
+    return 1;
+}
 
 int handleSleepSyscall(Process* process, Syscall syscall) {
     printf("%sExecuting syscall %s%s\n", COLOUR_CYAN, syscall.syscall, COLOUR_NORMAL);
@@ -355,7 +362,7 @@ int handleExitSyscall(Process* process, Syscall syscall) {
     process->state = EXIT;
     enqueue(&exitQueue, process);
     dequeue(&runningQueue, process);
-    printf("%sMoving Process ID %d with name %s to exit queue%s\n", COLOUR_RED, process->id, process->command.name, COLOUR_NORMAL);
+    printf("%sMoving Process ID %d with name %s to exit queue%s\n", COLOUR_MAGENTA, process->id, process->command.name, COLOUR_NORMAL);
 
     // Unblock any processes waiting for this process
     for (int l = 0; l < numWaitingProcesses; l++) {
@@ -415,6 +422,10 @@ void executeSyscall(Process* process, DeviceStorage* deviceStorage, CommandStora
     }
 }
 
+//  ----------------------------------------------------------------------
+
+/* EXECUTE COMMANDS */
+
 void execute_commands(CommandStorage* commandStorage, DeviceStorage* deviceStorage) {
     // Create a queue for each state
 
@@ -424,7 +435,7 @@ void execute_commands(CommandStorage* commandStorage, DeviceStorage* deviceStora
     initializeQueue(&blockedQueue);
     initializeQueue(&exitQueue);
 
-    int globalTime = 0;
+    //int globalTime = 0;
 
     // Create an initial process for each command and add it to the ready queue
     for (int i = 0; i < commandStorage->num_commands; i++) {
