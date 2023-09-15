@@ -49,6 +49,7 @@
 //  ----------------------------------------------------------------------
 
 #define TOTAL_TIME_TAKEN 0
+#define TIME_ON_CPU 0
 #define CPU_UTILISATION 0
 
 //  ----------------------------------------------------------------------
@@ -256,6 +257,8 @@ int handleReadSyscall(Process* process, Syscall syscall, DeviceStorage* deviceSt
         printf("%sDevice %s not found%s\n", COLOUR_RED, devicename, COLOUR_NORMAL);
     }
 
+    TOTAL_TIME_TAKEN += readtime;
+
     return 0; // Continue the loop
 }
 
@@ -283,6 +286,8 @@ int handleWriteSyscall(Process* process, Syscall syscall, DeviceStorage* deviceS
     } else {
         printf("%sDevice %s not found%s\n", COLOUR_RED, devicename, COLOUR_NORMAL);
     }
+
+    TOTAL_TIME_TAKEN += writetime;
 
     return 0; // Continue the loop
 }
