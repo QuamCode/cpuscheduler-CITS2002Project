@@ -48,9 +48,9 @@
 
 //  ----------------------------------------------------------------------
 
-#define TOTAL_TIME_TAKEN 0
-#define TIME_ON_CPU 0
-#define CPU_UTILISATION 0
+int TOTAL_TIME_TAKEN = 0;
+int TIME_ON_CPU = 0;
+int CPU_UTILISATION = 0;
 
 //  ----------------------------------------------------------------------
 
