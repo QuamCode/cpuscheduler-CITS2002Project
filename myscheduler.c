@@ -118,7 +118,7 @@ typedef struct {
     int waiting_for_process_id;
     int parent_id;
     int current_call;
-    int total_time;
+    int cpu_time;
 } Process;
 
 //Create a struct for the queue
@@ -145,6 +145,7 @@ void initProcess(Process* process) {
     process->id = -1;
     process->parent_id = -1;
     process->waiting_for_process_id = -1;
+    process->cpu_time = 0;
 
 }
 
@@ -213,21 +214,29 @@ double deviceCalculator(int speed, int amount) {
     return usecsTaken;
 }
 
-// oh you already did that
-int timeQuantumCheck(int time) {
+void timeQuantumCheck(Process* process) {
+    /* i had a time variable as a parameter
     if (time == DEFAULT_TIME_QUANTUM || time > DEFAULT_TIME_QUANTUM) {
-        return 0; // if time exceeds 100 which is default time quantum
+        return 0; 
     }
-    return 1;
+    */
+    // this ones problematic
+    if (process->cpu_time >= DEFAULT_TIME_QUANTUM) { 
+        process->state = READY;
+        enqueue(&readyQueue, process);
+        dequeue(&runningQueue, process);
+        printf("%sMoving Process ID %d with name %s to ready queue [TIME QUANTUM CHECK]%s\n", COLOUR_YELLOW, process->id, process->command.name, COLOUR_NORMAL);
+    }
 }
 
 int handleSleepSyscall(Process* process, Syscall syscall) {
     printf("%sExecuting syscall %s%s\n", COLOUR_CYAN, syscall.syscall, COLOUR_NORMAL);
     int sleeptime = convertToInt(syscall.arg1);
-    printf("%ssleeping for %d usecs%s\n", COLOUR_CYAN, sleeptime, COLOUR_NORMAL);
-    process->total_time += sleeptime;
+    printf("sleeping for %d usecs\n", sleeptime);
     
     // Implement sleep logic here
+
+    TOTAL_TIME_TAKEN += sleeptime;
 
     return 0; // Continue the loop
 }
@@ -419,12 +428,6 @@ void executeSyscall(Process* process, DeviceStorage* deviceStorage, CommandStora
         } else if (strcmp(syscall.syscall, "exit") == 0) {
             shouldTerminate = handleExitSyscall(process, syscall);
         }
-        // if (process->total_time > DEFAULT_TIME_QUANTUM) {
-        //     process->state = READY;
-        //     enqueue(&readyQueue, process);
-        //     dequeue(&runningQueue, process);
-        //     printf("%sMoving Process ID %d with name %s to ready queue%s\n", COLOUR_YELLOW, process->id, process->command.name, COLOUR_NORMAL);
-        // }
 
         if (shouldTerminate) {
             break;
@@ -614,9 +617,9 @@ void read_commands(char argv0[], char filename[], CommandStorage *commandStorage
 
 /* FINAL CALCULATIONS */
 
-void calculateTotalTimeTaken() {}
-
-void calculateCPUUtilisation() {}
+void calculateCPUUtilisation() {
+    CPU_UTILISATION = TIME_ON_CPU/TOTAL_TIME_TAKEN * 100;
+}
 
 //  ----------------------------------------------------------------------
 
@@ -657,6 +660,8 @@ int main(int argc, char *argv[])
 
 //  READ THE COMMAND FILE
     read_commands(argv[0], argv[2], &commandStorage);
+
+    //calculateCPUUtilisation(); // floating point exception
 
     printCommandStorage(&commandStorage);
     printDeviceStorage(&deviceStorage);
