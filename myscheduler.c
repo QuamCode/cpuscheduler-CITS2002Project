@@ -48,6 +48,11 @@
 
 //  ----------------------------------------------------------------------
 
+#define TOTAL_TIME_TAKEN 0
+#define CPU_UTILISATION 0
+
+//  ----------------------------------------------------------------------
+
 // added colours to make output easier to read
 #define COLOUR_NORMAL "\x1b[0m"
 #define COLOUR_RED "\x1b[31m"
@@ -245,7 +250,7 @@ int handleReadSyscall(Process* process, Syscall syscall, DeviceStorage* deviceSt
     }
 
     if (deviceInStorage) {
-        printf("%sdevice %s will read %d bytes in %f usecs.%s\n", COLOUR_GREEN, devicename, bytes, readtime, COLOUR_NORMAL);
+        printf("device %s will read %d bytes in %f usecs.\n", devicename, bytes, readtime);
         syscall.elapsed_time += readtime;
     } else {
         printf("%sDevice %s not found%s\n", COLOUR_RED, devicename, COLOUR_NORMAL);
@@ -273,7 +278,7 @@ int handleWriteSyscall(Process* process, Syscall syscall, DeviceStorage* deviceS
     }
 
     if (deviceInStorage) {
-        printf("%sdevice %s will write %d bytes in %f usecs.%s\n", COLOUR_GREEN, devicename, bytes, writetime, COLOUR_NORMAL);
+        printf("device %s will write %d bytes in %f usecs.\n", devicename, bytes, writetime);
         syscall.elapsed_time += writetime;
     } else {
         printf("%sDevice %s not found%s\n", COLOUR_RED, devicename, COLOUR_NORMAL);
@@ -348,7 +353,7 @@ int handleWaitSyscall(Process* process, Syscall syscall) {
         waitingProcesses[numWaitingProcesses++] = process->id;
         return 1; // Terminate the loop
     } else {
-        printf("No child process to wait for or child has already finished.\n");
+        printf("%sNo child process to wait for or child has already finished.%s\n", COLOUR_BLACK, COLOUR_NORMAL);
         process->state = READY;
         enqueue(&readyQueue, process);
         dequeue(&runningQueue, process);
@@ -446,7 +451,7 @@ void execute_commands(CommandStorage* commandStorage, DeviceStorage* deviceStora
         process.id = processID++;
         process.parent_id = -1;
         enqueue(&readyQueue, &process);
-        printf("Adding Process ID %d with name %s to ready queue\n", i, process.command.name);
+        printf("%sAdding Process ID %d with name %s to ready queue%s\n", COLOUR_YELLOW, i, process.command.name, COLOUR_NORMAL);
     
 
     // While there are still processes in the running queue or ready queue, execute them
@@ -455,7 +460,7 @@ void execute_commands(CommandStorage* commandStorage, DeviceStorage* deviceStora
             dequeue(&readyQueue, &process);
             process.state = RUNNING;
             enqueue(&runningQueue, &process);
-            printf("Moving Process ID %d with name %s to running queue\n", process.id, process.command.name);
+            printf("%sMoving Process ID %d with name %s to running queue%s\n", COLOUR_GREEN, process.id, process.command.name, COLOUR_NORMAL);
         }
 
         // Execute processes in the running queue
@@ -602,6 +607,14 @@ void read_commands(char argv0[], char filename[], CommandStorage *commandStorage
 
 //  ----------------------------------------------------------------------
 
+/* FINAL CALCULATIONS */
+
+void calculateTotalTimeTaken() {}
+
+void calculateCPUUtilisation() {}
+
+//  ----------------------------------------------------------------------
+
 void printCommandStorage(CommandStorage *storage) {
     for (int i = 0; i < storage->num_commands; i++) {
         Command command = storage->commands[i];
@@ -648,7 +661,7 @@ int main(int argc, char *argv[])
     execute_commands(&commandStorage, &deviceStorage);
 
 //  PRINT THE PROGRAM'S RESULTS
-    printf("measurements  %i  %i\n", 0, 0);
+    printf("measurements  %i  %i\n", TOTAL_TIME_TAKEN, CPU_UTILISATION);
 
     exit(EXIT_SUCCESS);
 }
